@@ -31,19 +31,18 @@ async function main() {
     //
     // Broadcasts the "viewed" message to other microservices.
     //
-	function broadcastViewedMessage(messageChannel, videoPath) {
-	    console.log(`Publishing message on "viewed" exchange.`);
-	        
-	    const msg = { videoPath: videoPath };
-	    const jsonMsg = JSON.stringify(msg);
+	function broadcastViewedMessage(messageChannel, message) {
+	    // console.log(`Publishing message on "viewed" exchange.`);
+	    const jsonMsg = JSON.stringify(message);
+        console.log(jsonMsg)
 	    messageChannel.publish("viewed", "", Buffer.from(jsonMsg)); // Publishes message to the "viewed" exchange.
 	}
 
     const app = express();
 
     app.get("/video", async (req, res) => { // Route for streaming video.
-
-        const videoPath = "./videos/SampleVideo_1280x720_1mb.mp4";
+        const id = req.query.id;
+        const videoPath = `./videos/${id}.mp4`; // read the video file according to id
         const stats = await fs.promises.stat(videoPath);
 
         res.writeHead(200, {
@@ -52,8 +51,8 @@ async function main() {
         });
     
         fs.createReadStream(videoPath).pipe(res);
-
-        broadcastViewedMessage(messageChannel, videoPath); // Sends the "viewed" message to indicate this video has been watched.
+        message = {id: id, videoPath: videoPath};
+        broadcastViewedMessage(messageChannel, message); // Sends the "viewed" message to indicate this video has been watched.
     });
 
     app.listen(PORT, () => {

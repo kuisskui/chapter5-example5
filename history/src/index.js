@@ -83,14 +83,22 @@ async function main() {
     // Start receiving messages from the anonymous queue.
     //
     await messageChannel.consume(queue, async (msg)=> {
-        console.log("Received a 'viewed' message");
-
+        // console.log("Received a 'viewed' message");
         const parsedMsg = JSON.parse(msg.content.toString()); // Parse the JSON message.
-        
-        await historyCollection.insertOne({ videoPath: parsedMsg.videoPath }); // Record the "view" in the database.
 
-        console.log("Acknowledging message was handled.");
-                
+        // Increment the "viewed" count for the given videoPath, or insert if it doesn't exist
+        const updateResult = await historyCollection.updateOne(
+            { videoPath: parsedMsg.videoPath },
+            { $inc: { viewed: 1 } },
+            { upsert: true }
+        );
+
+        // Log the updated count
+        const updatedDoc = await historyCollection.findOne({ videoPath: parsedMsg.videoPath });
+        console.log(`Total views for videoPath "${parsedMsg.videoPath}": ${updatedDoc.viewed}`);
+
+        // console.log("Acknowledging message was handled.");
+
         messageChannel.ack(msg); // If there is no error, acknowledge the message.
     });
 
@@ -106,6 +114,12 @@ async function main() {
             .toArray();
         res.json({ history });
     });
+
+    app.get("/history_collection", async (req, res) => {
+        const result = await historyCollection.find().toArray();
+        // await historyCollection.deleteMany({});
+        res.json({result})
+    })
 
     //
     // Starts the HTTP server.
